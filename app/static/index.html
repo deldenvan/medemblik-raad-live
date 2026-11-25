@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raad Medemblik live</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #00607a; --live: #c62828; --mark: #ffe58a;
+    --size: 20px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121413; --panel: #1b1e1d; --text: #ececea; --muted: #9a9d99;
+      --line: #2c302e; --accent: #5cc3db; --live: #ff6b6b; --mark: #6b5a00;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121413; --panel: #1b1e1d; --text: #ececea; --muted: #9a9d99;
+    --line: #2c302e; --accent: #5cc3db; --live: #ff6b6b; --mark: #6b5a00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--panel);
+    border-bottom: 1px solid var(--line); }
+  .bar { max-width: 860px; margin: 0 auto; padding: 12px 16px;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  h1 { font-size: 18px; margin: 0; flex: 1 1 auto; }
+  .status { font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 99px;
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .status.live { color: var(--live); border-color: var(--live); }
+  .status.live::before { content: "● "; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+  .tools input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; font: inherit;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+  button, a.btn { font: inherit; font-size: 14px; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    cursor: pointer; text-decoration: none; }
+  button:hover, a.btn:hover { border-color: var(--accent); }
+  main { max-width: 860px; margin: 0 auto; padding: 16px 16px 120px; }
+  .seg { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 6px 0;
+    font-size: var(--size); }
+  .seg time { font-size: 12px; color: var(--muted); padding-top: .45em;
+    font-variant-numeric: tabular-nums; }
+  .pending { color: var(--muted); font-style: italic; }
+  .empty { color: var(--muted); text-align: center; padding: 48px 0; }
+  mark { background: var(--mark); color: inherit; }
+  .hidden { display: none; }
+  #follow { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #fff; border: 0; padding: 10px 18px;
+    border-radius: 99px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  footer { max-width: 860px; margin: 0 auto; padding: 0 16px 24px; color: var(--muted); font-size: 13px; }
+  @media (max-width: 520px) { .seg { grid-template-columns: 1fr; gap: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1 id="title">Gemeenteraad Medemblik – live meelezen</h1>
+    <span id="status" class="status">verbinden…</span>
+    <div class="tools">
+      <input id="q" type="search" placeholder="Zoek in de tekst…" aria-label="Zoeken">
+      <button id="smaller" title="Kleinere letters" aria-label="Kleinere letters">A−</button>
+      <button id="bigger" title="Grotere letters" aria-label="Grotere letters">A+</button>
+      <button id="theme" title="Licht/donker">◐</button>
+      <a class="btn" href="download.txt">↓ Tekst</a>
+      <a class="btn" href="download.srt">↓ Ondertitels</a>
+    </div>
+  </div>
+</header>
+<main id="feed" aria-live="polite">
+  <p id="empty" class="empty">Nog geen tekst. Zodra de vergadering live is, verschijnt hier de uitgeschreven tekst.</p>
+</main>
+<div id="pendingRow" class="seg pending hidden"><time>…</time><span id="pendingText"></span></div>
+<footer>Automatisch gemaakt met spraakherkenning. Er kunnen fouten in staan; dit is geen officieel verslag.</footer>
+<button id="follow" class="hidden">↓ Naar live</button>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const feed = $("feed"), pendingRow = $("pendingRow");
+const statusText = { live: "LIVE", wachten: "geen uitzending", starten: "opstarten", fout: "storing" };
+let segments = [], follow = true, query = "";
+
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+let size = parseInt(load("size") || "20", 10);
+const applySize = () => document.documentElement.style.setProperty("--size", size + "px");
+applySize();
+$("bigger").onclick = () => { size = Math.min(40, size + 2); applySize(); store("size", size); };
+$("smaller").onclick = () => { size = Math.max(14, size - 2); applySize(); store("size", size); };
+const savedTheme = load("theme"); if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+$("theme").onclick = () => {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.dataset.theme || (dark ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next; store("theme", next);
+};
+
+function setStatus(s) {
+  const el = $("status");
+  el.textContent = statusText[s] || s;
+  el.className = "status" + (s === "live" ? " live" : "");
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function render(seg) {
+  const row = document.createElement("div");
+  row.className = "seg";
+  row.innerHTML = `<time>${seg.clock}</time><span>${highlight(seg.text)}</span>`;
+  row.dataset.text = seg.text.toLowerCase();
+  row.dataset.raw = seg.text;
+  if (query && !row.dataset.text.includes(query)) row.classList.add("hidden");
+  return row;
+}
+function highlight(text) {
+  const safe = escapeHtml(text);
+  if (!query) return safe;
+  const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  return safe.replace(re, (m) => `<mark>${m}</mark>`);
+}
+function rebuild() {
+  feed.querySelectorAll(".seg").forEach((n) => n.remove());
+  $("empty").classList.toggle("hidden", segments.length > 0);
+  const frag = document.createDocumentFragment();
+  segments.forEach((s) => frag.appendChild(render(s)));
+  feed.appendChild(frag);
+  feed.appendChild(pendingRow);
+  scrollIfFollowing();
+}
+function scrollIfFollowing() { if (follow && !query) window.scrollTo(0, document.body.scrollHeight); }
+
+$("q").addEventListener("input", (e) => {
+  query = e.target.value.trim().toLowerCase();
+  feed.querySelectorAll(".seg:not(#pendingRow)").forEach((row) => {
+    row.classList.toggle("hidden", !!query && !row.dataset.text.includes(query));
+    row.querySelector("span").innerHTML = highlight(row.dataset.raw);
+  });
+});
+
+window.addEventListener("scroll", () => {
+  const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+  follow = atBottom;
+  $("follow").classList.toggle("hidden", atBottom);
+}, { passive: true });
+$("follow").onclick = () => { follow = true; window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); };
+
+function connect() {
+  const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + location.pathname.replace(/[^/]*$/, "") + "ws");
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === "snapshot") {
+      $("title").textContent = m.title; document.title = m.title;
+      segments = m.segments; setStatus(m.status); rebuild(); setPending(m.pending);
+    } else if (m.type === "status") {
+      setStatus(m.status);
+    } else if (m.type === "segment") {
+      segments.push(m.segment);
+      $("empty").classList.add("hidden");
+      feed.insertBefore(render(m.segment), pendingRow);
+      scrollIfFollowing();
+    } else if (m.type === "pending") {
+      setPending(m.text);
+    }
+  };
+  ws.onclose = () => { setStatus("verbinding verbroken"); setTimeout(connect, 3000); };
+}
+function setPending(text) {
+  $("pendingText").textContent = text || "";
+  pendingRow.classList.toggle("hidden", !text);
+  scrollIfFollowing();
+}
+connect();
+</script>
+</body>
+</html>

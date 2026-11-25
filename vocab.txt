@@ -1,0 +1,33 @@
+# Woorden en namen die vaak voorkomen. Eén per regel.
+# Vul hier de namen van raadsleden, wethouders, burgemeester en fracties aan:
+# dat verbetert de herkenning van namen flink.
+Medemblik
+Wervershoof
+Andijk
+Onderdijk
+Zwaagdijk
+Abbekerk
+Lambertschaag
+Twisk
+Opperdoes
+Midwoud
+Oostwoud
+Hauwert
+Nibbixwoud
+Wognum
+Benningbroek
+Sijbekarspel
+Westfriesland
+voorzitter
+burgemeester
+wethouder
+griffier
+raadsvoorstel
+raadsvergadering
+motie
+amendement
+stemverklaring
+hamerstuk
+bespreekstuk
+interruptie
+college van B en W
