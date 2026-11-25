@@ -30,6 +30,8 @@ WHISPER_MODEL = _env("WHISPER_MODEL", "large-v3-turbo")
 WHISPER_DEVICE = _env("WHISPER_DEVICE", "auto")  # auto, cpu, cuda
 WHISPER_COMPUTE = _env("WHISPER_COMPUTE", "default")  # int8 is snel op CPU
 LANGUAGE = _env("LANGUAGE", "nl")
+# Aantal processorkernen voor Whisper (0 = automatisch).
+WHISPER_THREADS = int(_env("WHISPER_THREADS", "0"))
 
 # Elke STEP_SECONDS wordt de nog niet afgeronde audio opnieuw getranscribeerd.
 STEP_SECONDS = float(_env("STEP_SECONDS", "4"))

@@ -1,0 +1,18 @@
+[Unit]
+Description=Live transcriptie gemeenteraad Medemblik
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+Group=@USER@
+WorkingDirectory=@DIR@
+ExecStart=@DIR@/.venv/bin/python -m app.server
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+# Laat Whisper niet alle processorkernen opeisen, zodat andere sites blijven werken.
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

@@ -41,7 +41,8 @@ class WhisperEngine:
         log.info("Model %s laden (%s/%s)…", config.WHISPER_MODEL,
                  config.WHISPER_DEVICE, config.WHISPER_COMPUTE)
         self.model = WhisperModel(config.WHISPER_MODEL, device=config.WHISPER_DEVICE,
-                                  compute_type=config.WHISPER_COMPUTE)
+                                  compute_type=config.WHISPER_COMPUTE,
+                                  cpu_threads=config.WHISPER_THREADS)
         self.prompt = _load_prompt()
 
     def transcribe(self, audio: np.ndarray, context: str) -> list[Segment]:

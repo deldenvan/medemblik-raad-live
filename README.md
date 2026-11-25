@@ -17,7 +17,12 @@ volgen en om achteraf snel iets terug te zoeken.
 Op de pagina: zoeken in de tekst, grotere of kleinere letters, licht/donker en
 automatisch meescrollen (scroll omhoog om terug te lezen; de knop "Naar live" brengt je terug).
 
-## Starten met Docker (aanbevolen)
+## Installeren op CloudPanel
+
+Zie [deploy/cloudpanel/README.md](deploy/cloudpanel/README.md): Python-site aanmaken,
+één installatiescript draaien en een paar regels in de Vhost plakken.
+
+## Starten met Docker
 
 ```bash
 cp .env.example .env

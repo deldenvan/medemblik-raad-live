@@ -135,6 +135,11 @@ async def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/healthz")
+async def healthz() -> JSONResponse:
+    return JSONResponse({"ok": True, "status": state.status})
+
+
 @app.get("/api/transcript")
 async def transcript() -> JSONResponse:
     return JSONResponse(state.snapshot())
@@ -176,7 +181,8 @@ async def ws(websocket: WebSocket) -> None:
 def main() -> None:
     import uvicorn
 
-    uvicorn.run(app, host=config.HOST, port=config.PORT)
+    uvicorn.run(app, host=config.HOST, port=config.PORT, proxy_headers=True,
+                ws_ping_interval=20, ws_ping_timeout=20)
 
 
 if __name__ == "__main__":
