@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Werkt de app bij na nieuwe code. Draait als de site-gebruiker (geen root nodig).
 # Wordt automatisch aangeroepen door GitHub Actions (.github/workflows/deploy.yml),
-# maar kan ook met de hand:  bash deploy/cloudpanel/update.sh
+# maar kan ook met de hand:  bash deploy/hestiacp/update.sh
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

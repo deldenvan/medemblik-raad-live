@@ -1,4 +1,4 @@
-name: Uitrollen naar CloudPanel
+name: Uitrollen naar HestiaCP
 
 on:
   push:
@@ -21,8 +21,8 @@ jobs:
       - name: Controleren of de code klopt
         run: |
           python -m compileall -q app
-          bash -n deploy/cloudpanel/install.sh
-          bash -n deploy/cloudpanel/update.sh
+          bash -n deploy/hestiacp/install.sh
+          bash -n deploy/hestiacp/update.sh
 
   deploy:
     needs: check
@@ -65,4 +65,4 @@ jobs:
         if: steps.cfg.outputs.skip != 'true'
         run: |
           ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" \
-            "bash '$DIR/deploy/cloudpanel/update.sh'"
+            "bash '$DIR/deploy/hestiacp/update.sh'"
