@@ -55,6 +55,30 @@ class State:
         self.pending = ""
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.logfile = config.DATA_DIR / f"{self.session_id}.jsonl"
+        meta = {"session": self.session_id, "started_at": self.started_at}
+        self.logfile.with_suffix(".meta.json").write_text(json.dumps(meta), "utf-8")
+
+    def restore_recent(self) -> None:
+        """Na een herstart (bijv. een update): laad de lopende vergadering weer in."""
+        metas = sorted(config.DATA_DIR.glob("*.meta.json"))
+        if not metas:
+            return
+        try:
+            meta = json.loads(metas[-1].read_text("utf-8"))
+            logfile = config.DATA_DIR / f"{meta['session']}.jsonl"
+            last = logfile.stat().st_mtime if logfile.exists() else metas[-1].stat().st_mtime
+            if time.time() - last > config.SESSION_GAP_MINUTES * 60:
+                return
+            segments = []
+            if logfile.exists():
+                with logfile.open(encoding="utf-8") as f:
+                    segments = [json.loads(line) for line in f if line.strip()]
+        except (OSError, ValueError, KeyError) as e:
+            log.warning("Kon vorige vergadering niet herstellen: %s", e)
+            return
+        self.session_id, self.started_at = meta["session"], meta["started_at"]
+        self.logfile, self.segments, self.last_audio = logfile, segments, last
+        log.info("Vergadering %s hersteld (%d zinnen)", self.session_id, len(segments))
 
     def add(self, seg: Segment) -> dict:
         item = {"id": len(self.segments), "start": round(seg.start, 2),
@@ -122,6 +146,7 @@ async def _emit(final: list[Segment], pending: str) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    state.restore_recent()
     task = asyncio.create_task(run_pipeline())
     yield
     task.cancel()

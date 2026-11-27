@@ -17,10 +17,12 @@ volgen en om achteraf snel iets terug te zoeken.
 Op de pagina: zoeken in de tekst, grotere of kleinere letters, licht/donker en
 automatisch meescrollen (scroll omhoog om terug te lezen; de knop "Naar live" brengt je terug).
 
-## Installeren op CloudPanel
+## Installeren op HestiaCP
 
-Zie [deploy/cloudpanel/README.md](deploy/cloudpanel/README.md): Python-site aanmaken,
-één installatiescript draaien en een paar regels in de Vhost plakken.
+Zie [deploy/hestiacp/README.md](deploy/hestiacp/README.md): web-domein aanmaken in
+HestiaCP, code in de map `private/` zetten en één installatiescript draaien. Daar staat
+ook hoe je automatisch uitrollen instelt: elke wijziging op `main` komt dan vanzelf op
+je server.
 
 ## Starten met Docker
 
