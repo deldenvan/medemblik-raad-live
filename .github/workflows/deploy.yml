@@ -1,0 +1,68 @@
+name: Uitrollen naar CloudPanel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Nooit twee uitrollen tegelijk.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Controleren of de code klopt
+        run: |
+          python -m compileall -q app
+          bash -n deploy/cloudpanel/install.sh
+          bash -n deploy/cloudpanel/update.sh
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+      USER: ${{ secrets.DEPLOY_USER }}
+      DIR: ${{ secrets.DEPLOY_PATH }}
+      PORT: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+    steps:
+      - name: Instellingen aanwezig?
+        id: cfg
+        run: |
+          if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$DIR" ]; then
+            echo "::warning::Geen DEPLOY_HOST/DEPLOY_USER/DEPLOY_PATH ingesteld; uitrollen overgeslagen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.skip != 'true'
+
+      - name: SSH-sleutel klaarzetten
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Code naar de server kopiëren
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' --exclude '.github/' --exclude '.env' \
+            --exclude '.venv/' --exclude 'data/' --exclude '__pycache__/' \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            ./ "$USER@$HOST:$DIR/"
+
+      - name: Bijwerken en herstarten
+        if: steps.cfg.outputs.skip != 'true'
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            "bash '$DIR/deploy/cloudpanel/update.sh'"

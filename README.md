@@ -20,7 +20,8 @@ automatisch meescrollen (scroll omhoog om terug te lezen; de knop "Naar live" br
 ## Installeren op CloudPanel
 
 Zie [deploy/cloudpanel/README.md](deploy/cloudpanel/README.md): Python-site aanmaken,
-één installatiescript draaien en een paar regels in de Vhost plakken.
+één installatiescript draaien en een paar regels in de Vhost plakken. Daar staat ook
+hoe je automatisch uitrollen instelt: elke wijziging op `main` komt dan vanzelf op je server.
 
 ## Starten met Docker
 

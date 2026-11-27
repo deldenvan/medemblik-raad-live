@@ -86,12 +86,103 @@ Loopt de tekst steeds verder achter op de uitzending? Kies dan een kleiner model
 Draaien er andere sites op dezelfde server? Zet `WHISPER_THREADS` op ongeveer de helft
 van het aantal kernen.
 
-## Bijwerken naar een nieuwe versie
+## Automatisch uitrollen (aanbevolen)
+
+Na deze eenmalige instelling komt elke wijziging op de `main`-branch van GitHub
+vanzelf op je server. GitHub Actions doet dan:
+
+1. de code controleren;
+2. de code via SSH naar je server kopiëren (`.env`, `.venv` en `data/` blijven onaangeraakt);
+3. `deploy/cloudpanel/update.sh` draaien: onderdelen bijwerken, de app herstarten en
+   controleren of hij weer reageert.
+
+Valt een uitrol midden in een vergadering, dan is de app ongeveer een halve minuut weg.
+De tekst tot dan toe blijft staan en de transcriptie gaat daarna verder.
+
+### Stap A – Server klaarmaken (eenmalig, als root)
+
+Draai het installatiescript nog een keer. Het geeft de site-gebruiker dan toestemming om
+**alleen deze app** te herstarten, en installeert `rsync`:
+
+```bash
+cd /home/raadlive/htdocs/raad.jouwdomein.nl
+bash deploy/cloudpanel/install.sh raadlive 8090
+```
+
+### Stap B – Een sleutel voor GitHub maken (op je eigen computer)
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "github-deploy" -f raad-deploy
+```
+
+Je krijgt twee bestanden: `raad-deploy` (geheim, voor GitHub) en `raad-deploy.pub`
+(openbaar, voor de server).
+
+### Stap C – De openbare sleutel op de server zetten (als root)
+
+Zet de inhoud van `raad-deploy.pub` bij de site-gebruiker:
+
+```bash
+mkdir -p /home/raadlive/.ssh
+echo "PLAK-HIER-DE-INHOUD-VAN-raad-deploy.pub" >> /home/raadlive/.ssh/authorized_keys
+chown -R raadlive:raadlive /home/raadlive/.ssh
+chmod 700 /home/raadlive/.ssh && chmod 600 /home/raadlive/.ssh/authorized_keys
+```
+
+Controleer vanaf je eigen computer dat het werkt:
+
+```bash
+ssh -i raad-deploy raadlive@jouwserver "echo gelukt"
+```
+
+### Stap D – De vingerafdruk van je server ophalen (op je eigen computer)
+
+```bash
+ssh-keyscan jouwserver
+```
+
+Kopieer alle regels die dit toont. Zo weet GitHub zeker dat het met jóuw server praat.
+(Draait SSH op een andere poort, gebruik dan `ssh-keyscan -p POORT jouwserver`.)
+
+### Stap E – Geheimen invullen in GitHub
+
+Ga in de repository naar **Settings → Secrets and variables → Actions →
+New repository secret** en maak aan:
+
+| Naam | Waarde |
+|---|---|
+| `DEPLOY_HOST` | het adres van je server, bijv. `123.45.67.89` of `server.jouwdomein.nl` |
+| `DEPLOY_USER` | de site-gebruiker, bijv. `raadlive` |
+| `DEPLOY_PATH` | de map van de site, bijv. `/home/raadlive/htdocs/raad.jouwdomein.nl` |
+| `DEPLOY_SSH_KEY` | de volledige inhoud van het bestand `raad-deploy` (dus niet `.pub`) |
+| `DEPLOY_KNOWN_HOSTS` | de regels uit stap D |
+| `DEPLOY_SSH_PORT` | alleen nodig als SSH niet op poort 22 draait |
+
+Verwijder daarna het bestand `raad-deploy` van je computer, of bewaar het veilig.
+
+### Stap F – Testen
+
+Ga in GitHub naar **Actions → Uitrollen naar CloudPanel → Run workflow**. Na een
+minuut of twee staat er een groen vinkje. Bij een rood kruis: klik erop, de foutmelding
+staat bij de stap die mislukte.
+
+Zolang de geheimen niet zijn ingevuld, slaat de workflow het uitrollen gewoon over.
+
+### Goed om te weten
+
+- `.env` staat niet in GitHub en wordt nooit overschreven. Instellingen wijzig je dus op
+  de server zelf (daarna `systemctl restart raad-live-raadlive`).
+- `vocab.txt` (de namenlijst) staat wél in GitHub. Pas die aan in de repository; bij de
+  volgende uitrol staat hij op de server.
+- Wat je met de hand op de server in de code wijzigt, wordt bij de volgende uitrol
+  overschreven.
+
+## Met de hand bijwerken (zonder automatisch uitrollen)
 
 ```bash
 cd /home/raadlive/htdocs/raad.jouwdomein.nl
 sudo -u raadlive git pull
-bash deploy/cloudpanel/install.sh raadlive 8090
+sudo -u raadlive bash deploy/cloudpanel/update.sh
 ```
 
 Je `.env` blijft bewaard.

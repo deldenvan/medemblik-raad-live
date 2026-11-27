@@ -24,7 +24,7 @@ id "$SITE_USER" >/dev/null 2>&1 || { echo "Gebruiker $SITE_USER bestaat niet." >
 
 echo "==> Systeempakketten (ffmpeg, python3-venv)"
 apt-get update -qq
-apt-get install -y -qq ffmpeg python3-venv python3-pip >/dev/null
+apt-get install -y -qq ffmpeg python3-venv python3-pip rsync >/dev/null
 
 PYTHON="$(command -v python3)"
 "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
@@ -53,6 +53,16 @@ sed -i "s/^PORT=.*/PORT=${APP_PORT}/" "$APP_DIR/.env"
 echo "==> systemd-service $SERVICE"
 sed -e "s|@USER@|$SITE_USER|g" -e "s|@DIR@|$APP_DIR|g" \
   "$APP_DIR/deploy/cloudpanel/raad-live.service" > "/etc/systemd/system/${SERVICE}.service"
+
+# Laat de site-gebruiker (en dus het automatisch uitrollen) alleen deze service herstarten.
+SYSTEMCTL="$(command -v systemctl)"
+JOURNALCTL="$(command -v journalctl)"
+SUDOERS="/etc/sudoers.d/${SERVICE}"
+echo "$SITE_USER ALL=(root) NOPASSWD: $SYSTEMCTL restart $SERVICE, $SYSTEMCTL status $SERVICE, $JOURNALCTL -u $SERVICE *" \
+  > "$SUDOERS.tmp"
+chmod 440 "$SUDOERS.tmp"
+visudo -cf "$SUDOERS.tmp" >/dev/null && mv "$SUDOERS.tmp" "$SUDOERS"
+
 systemctl daemon-reload
 systemctl enable "$SERVICE" >/dev/null
 systemctl restart "$SERVICE"
